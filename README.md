@@ -52,10 +52,44 @@ The "library" (i.e. the single JavaScript file) was downloaded from GitHub at ht
 
 # Popup Button Behavior
 
-| State              | Start/Stop Button | Pause/Resume Button  |
-| ------------------ | ----------------- | -------------------- |
-| Idle               | Read main body    | ❌ Disabled (“Pause/Resume”) |
-| Reading            | Stop reading      | ✅ Enabled (“Pause”)         |
-| Paused             | Stop reading      | ✅ Enabled (“Resume”)        |
-| Stopped            | Read main body    | ❌ Disabled (“Pause/Resume”) |
-| Finished naturally | Read main body    | ❌ Disabled (“Pause/Resume”) |
+<table>
+  <tr>
+    <th rowspan=2><center>Reading<br>State</center></th>
+    <th rowspan=2><center>Start/Stop Button<br/>Label</center></th>
+    <td colspan=2><center><b>Pause/Resume Button</b></center></td>
+  </tr>
+  <tr>
+    <th><center>State</center></th>
+    <th><center>Label</center></th>
+  </tr>
+  <tr>
+    <td>Idle</td>
+    <td>Read main body</td>
+    <td>❌ Disabled</td>
+    <td>Pause/Resume</td>
+  </tr>
+  <tr>
+    <td>Reading</td>
+    <td>Stop reading</td>
+    <td>✅ Enabled</td>
+    <td>Pause</td>
+  </tr>
+  <tr>
+    <td>Paused</td>
+    <td>Stop reading</td>
+    <td>✅ Enabled</td>
+    <td>Resume</td>
+  </tr>
+  <tr>
+    <td>Stopped</td>
+    <td>Read main body</td>
+    <td>❌ Disabled</td>
+    <td>Pause/Resume</td>
+  </tr>
+  <tr>
+    <td>Finished naturally</td>
+    <td>Read main body</td>
+    <td>❌ Disabled</td>
+    <td>Pause/Resume</td>
+  </tr>
+</table>
