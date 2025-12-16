@@ -60,6 +60,47 @@
     select {
       padding: 8px;
     }
+
+    .progress-wrap {
+      margin-top: 10px;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      border-radius: 999px;
+      background: rgba(0, 0, 0, 0.12);
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: rgba(0, 0, 0, 0.55);
+    }
+
+    .progress-meta {
+      display: flex;
+      gap: 8px;
+      margin-top: 6px;
+      font-size: 12px;
+      opacity: 0.85;
+    }
+
+    .progress-meta .right {
+      margin-left: auto;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .sentence-preview {
+      margin-top: 6px;
+      font-size: 12px;
+      opacity: 0.85;
+      line-height: 1.3;
+      max-height: 3.9em;
+      overflow: hidden;
+    }
   </style>
 </head>
 
@@ -78,6 +119,21 @@
 
   <button id="toggleStartStop">Read main body</button>
   <button id="togglePauseResume">Pause</button>
+
+  <div class="progress-wrap">
+    <label id="progressLabel">Progress (global):</label>
+    <div class="progress-bar">
+      <div class="progress-fill" id="progressFill"></div>
+    </div>
+
+    <div class="progress-meta">
+      <div id="sentenceCount">0/0</div>
+      <div class="right" id="progressPct">0%</div>
+    </div>
+
+    <div class="sentence-preview" id="sentencePreview"></div>
+  </div>
+
 
   <div class="status-row">
     <div class="status" id="status">Idle</div>

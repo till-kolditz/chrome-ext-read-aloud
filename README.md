@@ -23,6 +23,7 @@ In the age of AI, IMHO it's important now to document the actual prompts which g
 * Rename variable "toggleBtn" to "startStopButton" and change the button's ID from "toggleRead" to "toggleStartStop". Rename function "setToggleMode()" to "setButtonModes()". Rename 'GET_TTS_STATE' to 'GET_BUTTON_STATES'. Merge the pause and resume buttons and align the names to those used for the start/stop-button changes.
 * Enable the pause/resume button only when reading.
 * Make the "Speed" label always reflect the selected speed.
+* Add sentence-level and overall progress tracking.
 
 # Folder Structure
 * read-main-body-aloud/

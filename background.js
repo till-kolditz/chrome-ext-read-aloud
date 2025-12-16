@@ -5,6 +5,31 @@ let currentTabId = null;
 let readingRate = 1.0;
 let stopRequested = false;
 
+let job = {
+  sentences: [],
+  total: 0,
+  idx: 0,  // 0-based current sentence index
+  currentSentenceText: '',
+  lang: '',
+  voiceNameUsed: '',
+  readingRate
+};
+
+function splitIntoSentences(text) {
+  const t = (text || '').replace(/\s+/g, ' ').trim();
+  if (!t) return [];
+
+  // Split on sentence end punctuation followed by space + a likely next
+  // sentence start. Also splits on line breaks that Readability might preserve.
+  const parts = t.split(/(?<=[.!?])\s+(?=[A-ZÀ-ÖØ-Þ0-9“"(\[])/g);
+
+  // Fallback: if we didn’t split much (e.g. all lowercase), do a softer split.
+  const rough = parts.length < 3 ? t.split(/(?<=[.!?])\s+/g) : parts;
+
+  return rough.map(s => s.trim()).filter(s => s.length > 0);
+}
+
+
 // Reads long text in chunks so Chrome TTS doesn't truncate.
 function chunkText(text, maxLen = 1500) {
   const chunks = [];
@@ -100,10 +125,23 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       isSpeaking = false;
       isPaused = false;
       currentTabId = null;
+      job = {
+        sentences: [],
+        total: 0,
+        idx: 0,
+        currentSentenceText: '',
+        lang: '',
+        voiceNameUsed: '',
+        readingRate
+      };
       return sendResponse({ok: true});
     }
 
     if (msg?.type === 'READ_MAIN_BODY') {
+      // Stop any previous speech, then speak in chunks.
+      stopRequested = true;
+      chrome.tts.stop();
+
       const {tabId, rate, voiceName} = msg;
       if (!tabId) return sendResponse({ok: false, error: 'Missing tabId.'});
 
@@ -113,54 +151,57 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       const extracted =
           await chrome.tabs.sendMessage(tabId, {type: 'EXTRACT_MAIN_TEXT'});
       const text = extracted?.text?.trim();
-      const lang = extracted?.lang || '';
 
-      if (!text)
+      if (!text) {
         return sendResponse(
             {ok: false, error: 'No readable main text found on this page.'});
-
-      // Stop any previous speech, then speak in chunks.
-      stopRequested = true;
-      chrome.tts.stop();
-
-      const chunks = chunkText(text);
-      let idx = 0;
-
-      let voiceNameUsed = (voiceName || '').trim();
-      // If popup is in Auto mode (voiceName is empty), pick a matching voice.
-      if (!voiceNameUsed) {
-        voiceNameUsed = await pickVoiceForLang(lang);
       }
 
-      const speakNext = () => {
-        if (stopRequested || idx >= chunks.length) {
+      const sentences = splitIntoSentences(text);
+      if (!sentences.length) {
+        return sendResponse({ok: false, error: 'No readable sentences found.'});
+      }
+      job.sentences = sentences;
+      job.total = sentences.length;
+      job.idx = 0;
+      job.currentSentenceText = '';
+      job.lang = extracted?.lang || '';
+      job.rate = typeof rate === 'number' ? rate : 1.0;
+      job.voiceNameUsed = (voiceName || '').trim();
+      // If popup is in Auto mode (voiceName is empty), pick a matching voice.
+      if (!job.voiceNameUsed) {
+        job.voiceNameUsed = await pickVoiceForLang(job.lang);
+      }
+
+      const speakNextSentence = () => {
+        if (stopRequested || job.idx >= job.total) {
           isSpeaking = false;
           isPaused = false;
           currentTabId = null;
           return;
         }
 
-        chrome.tts.speak(chunks[idx], {
+        const sentence = job.sentences[job.idx];
+        job.currentSentenceText = sentence;
+
+        chrome.tts.speak(sentence, {
           rate: readingRate,
-          voiceName: voiceNameUsed || undefined,
-          lang: lang || undefined,
+          voiceName: job.voiceNameUsed || undefined,
+          lang: job.lang || undefined,
           enqueue: false,
           onEvent: (ev) => {
             if (stopRequested) {
               return;
             }
 
-            if (ev.type === 'end') {
-              idx += 1;
-              speakNext();
+            if (ev.type === 'end' || ev.type === 'error') {
+              // Skip problematic chunk and continue.
+              job.idx += 1;
+              speakNextSentence();
             } else if (ev.type === 'interrupted') {
               // stopRequested was already checked above, so we're updating the
               // reading rate.
-              speakNext();
-            } else if (ev.type === 'error') {
-              // Skip problematic chunk and continue.
-              idx += 1;
-              speakNext();
+              speakNextSentence();
             }
           }
         });
@@ -170,9 +211,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       isPaused = false;
       currentTabId = tabId;
       stopRequested = false;
-      speakNext();
+      speakNextSentence();
 
-      return sendResponse({ok: true, lang, voiceNameUsed: voiceNameUsed || ''});
+      return sendResponse(
+          {ok: true, lang: job.lang, voiceNameUsed: job.voiceNameUsed || ''});
     }
 
     if (msg?.type === 'GET_DETECTED_LANGUAGE') {
@@ -196,6 +238,19 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg?.type === 'GET_READING_RATE') {
       return sendResponse({ok: true, readingRate});
     }
+
+    if (msg?.type === 'GET_PROGRESS_STATE') {
+      return sendResponse({
+        ok: true,
+        isSpeaking,
+        isPaused,
+        tabId: currentTabId,
+        totalSentences: job.total,
+        currentSentenceIndex: job.idx,
+        currentSentenceText: job.currentSentenceText || ''
+      });
+    }
+
 
     sendResponse({ok: false, error: 'Unknown message type.'});
   })().catch((e) => sendResponse({ok: false, error: String(e?.message || e)}));

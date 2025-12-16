@@ -7,6 +7,11 @@ const startStopButton = document.getElementById('toggleStartStop');
 const pauseResumeButton = document.getElementById('togglePauseResume');
 let readingMode = false;  // true => button means "Stop reading"
 
+const progressFillEl = document.getElementById('progressFill');
+const sentenceCountEl = document.getElementById('sentenceCount');
+const progressPctEl = document.getElementById('progressPct');
+const sentencePreviewEl = document.getElementById('sentencePreview');
+
 function setStatus(msg) {
   statusEl.textContent = msg;
 }
@@ -131,6 +136,55 @@ async function refreshButtonStates() {
   }
 }
 
+function clamp(n, a, b) {
+  return Math.min(b, Math.max(a, n));
+}
+
+function renderProgress(state) {
+  const total = Number(state?.totalSentences || 0);
+  const idx = Number(state?.currentSentenceIndex || 0);  // 0-based
+  const isActive = !!state?.isSpeaking;
+
+  const shownIdx = total ? clamp(idx + 1, 1, total) : 0;
+  sentenceCountEl.textContent = `${shownIdx}/${total}`;
+
+  const pct = total ? Math.round((shownIdx / total) * 100) : 0;
+  progressPctEl.textContent = `${pct}%`;
+  progressFillEl.style.width = `${pct}%`;
+
+  // Show current sentence preview only while reading/paused
+  if (isActive && state?.currentSentenceText) {
+    sentencePreviewEl.textContent = state.currentSentenceText;
+  } else {
+    sentencePreviewEl.textContent = '';
+  }
+}
+
+function resetProgress() {
+  renderProgress(
+      {totalSentences: 0, currentSentenceIndex: 0, isSpeaking: false});
+}
+
+async function refreshProgressState() {
+  try {
+    const tab = await getActiveTab();
+    if (!tab?.id) {
+      return resetProgress();
+    }
+
+    const res = await chrome.runtime.sendMessage({type: 'GET_PROGRESS_STATE'});
+    // Only show active progress for this tab; otherwise reset UI
+    const activeForThisTab = res?.ok && res.tabId === tab.id && res.isSpeaking;
+    if (!activeForThisTab) {
+      resetProgress();
+    } else {
+      renderProgress(res);
+    }
+  } catch {
+    resetProgress();
+  }
+}
+
 voiceEl.addEventListener('change', async () => {
   // If user picks a specific voice, store it. If they pick Auto, clear stored
   // selection.
@@ -143,7 +197,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   initRateUI();
   await updateDetectedLanguage();
   await refreshButtonStates();
-  setInterval(refreshButtonStates, 500);
+  setInterval(() => {
+    refreshButtonStates();
+    refreshProgressState();
+  }, 500);
 });
 
 startStopButton.addEventListener('click', async () => {
@@ -153,6 +210,9 @@ startStopButton.addEventListener('click', async () => {
 
     if (readingMode) {
       // Stop mode
+      renderProgress(
+          {totalSentences: 0, currentSentenceIndex: 0, isSpeaking: false});
+
       await chrome.runtime.sendMessage({type: 'STOP_READING'});
       setStatus('Stopped.');
       setStartStopButtonModes(false);
@@ -164,6 +224,13 @@ startStopButton.addEventListener('click', async () => {
     setStatus('Extracting main text…');
 
     const voiceName = voiceEl.value || '';  // empty => Auto
+
+    renderProgress({
+      totalSentences: 0,
+      currentSentenceIndex: 0,
+      isSpeaking: true,
+      currentSentenceText: ''
+    });
 
     const res = await chrome.runtime.sendMessage(
         {type: 'READ_MAIN_BODY', tabId: tab.id, voiceName});
