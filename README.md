@@ -22,6 +22,7 @@ In the age of AI, IMHO it's important now to document the actual prompts which g
 * Merge the Start and Stop buttons. Initially, the new merged button starts reading the main body, as before. Upon clicking the button, change the label to "Stop reading" and change the behavior to stop reading. When the button was clicked in stop mode, change its behavior to start reading from the beginning.
 * Rename variable "toggleBtn" to "startStopButton" and change the button's ID from "toggleRead" to "toggleStartStop". Rename function "setToggleMode()" to "setButtonModes()". Rename 'GET_TTS_STATE' to 'GET_BUTTON_STATES'. Merge the pause and resume buttons and align the names to those used for the start/stop-button changes.
 * Enable the pause/resume button only when reading.
+* Make the "Speed" label always reflect the selected speed.
 
 # Folder Structure
 * read-main-body-aloud/

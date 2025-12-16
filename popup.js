@@ -1,5 +1,6 @@
 const statusEl = document.getElementById('status');
 const langEl = document.getElementById('lang');
+const rateLabelEl = document.getElementById('rateLabel');
 const rateEl = document.getElementById('rate');
 const voiceEl = document.getElementById('voice');
 const startStopButton = document.getElementById('toggleStartStop');
@@ -17,6 +18,11 @@ function setLang(lang) {
 async function getActiveTab() {
   const [tab] = await chrome.tabs.query({active: true, currentWindow: true});
   return tab;
+}
+
+function setRateLabel(value) {
+  const v = Number(value);
+  rateLabelEl.textContent = `Speed: ${v.toFixed(1)}×`;
 }
 
 async function updateDetectedLanguage() {
@@ -125,6 +131,7 @@ voiceEl.addEventListener('change', async () => {
 document.addEventListener('DOMContentLoaded', async () => {
   await loadVoices();
   setStatus('Idle');
+  setRateLabel(rateEl.value);
   await updateDetectedLanguage();
   await refreshButtonStates();
   setInterval(refreshButtonStates, 500);
@@ -179,4 +186,8 @@ pauseResumeButton.addEventListener('click', async () => {
   } catch {
     // ignore
   }
+});
+
+rateEl.addEventListener('input', () => {
+  setRateLabel(rateEl.value);
 });
