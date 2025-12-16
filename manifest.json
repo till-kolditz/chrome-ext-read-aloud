@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "Read Main Body Aloud",
+  "version": "0.1.0",
+  "description": "Reads aloud the main body text of the current page (ignores menus/sidebars).",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "tts",
+    "storage"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "action": {
+    "default_title": "Read Main Body Aloud",
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  }
+}
