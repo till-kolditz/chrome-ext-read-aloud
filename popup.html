@@ -29,10 +29,21 @@
       width: 50%;
     }
 
-    .status {
+    .status-row {
+      display: flex;
+      align-items: center;
       margin-top: 8px;
+    }
+
+    .status {
       font-size: 12px;
       opacity: 0.85;
+    }
+
+    .status.lang {
+      margin-left: auto;
+      text-align: right;
+      white-space: nowrap;
     }
 
     label {
@@ -67,8 +78,6 @@
 
   <button id="read">Read main body</button>
 
-  <div class="status" id="lang">Detected language: —</div>
-
   <div class="row">
     <button id="pause">Pause</button>
     <button id="resume">Resume</button>
@@ -76,7 +85,10 @@
 
   <button id="stop">Stop</button>
 
-  <div class="status" id="status">Idle</div>
+  <div class="status-row">
+    <div class="status" id="status">Idle</div>
+    <div class="status lang" id="lang">—</div>
+  </div>
 
   <script src="popup.js"></script>
 </body>

@@ -166,3 +166,22 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
   return true;
 });
+
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg?.type === 'DETECT_LANGUAGE_ONLY') {
+    try {
+      let lang = detectLangFromDom();
+
+      if (!lang) {
+        // small text sample from body only
+        const sample = document.body?.innerText?.slice(0, 3000) || '';
+        lang = inferLangFromTextSample(sample);
+      }
+
+      sendResponse({ok: true, lang: lang || ''});
+    } catch (e) {
+      sendResponse({ok: false, lang: ''});
+    }
+    return true;
+  }
+});

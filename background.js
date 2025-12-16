@@ -1,3 +1,5 @@
+const tabLangMap = new Map();
+
 // Reads long text in chunks so Chrome TTS doesn't truncate.
 function chunkText(text, maxLen = 1500) {
   const chunks = [];
@@ -149,9 +151,40 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       return sendResponse({ok: true, lang, voiceNameUsed: voiceNameUsed || ''});
     }
 
+    if (msg?.type === 'GET_DETECTED_LANGUAGE') {
+      const lang = tabLangMap.get(msg.tabId) || '';
+      return sendResponse({ok: true, lang});
+    }
+
+
     sendResponse({ok: false, error: 'Unknown message type.'});
   })().catch((e) => sendResponse({ok: false, error: String(e?.message || e)}));
 
   // Keep the message channel open for async response.
   return true;
+});
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.status !== 'complete') return;
+  if (!tab?.url || !tabId) return;
+
+  (async () => {
+    try {
+      await chrome.scripting.executeScript(
+          {target: {tabId}, files: ['readability.js', 'content.js']});
+
+      const res =
+          await chrome.tabs.sendMessage(tabId, {type: 'DETECT_LANGUAGE_ONLY'});
+
+      if (res?.lang) {
+        tabLangMap.set(tabId, res.lang);
+      }
+    } catch {
+      // Ignore injection failures (chrome:// pages, PDFs, etc.)
+    }
+  })();
+});
+
+chrome.tabs.onRemoved.addListener((tabId) => {
+  tabLangMap.delete(tabId);
 });

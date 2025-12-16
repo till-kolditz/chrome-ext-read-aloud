@@ -17,6 +17,8 @@ In the age of AI, IMHO it's important now to document the actual prompts which g
 * Make the chrome extension detect the web page's language.
 * Show the detected language on the popup and auto-select a matching voice.
 * Tweak it so the dropdown remains on “Auto” while still using the detected language each time.
+* Display the detected language on the right side of the status, aligned to right.
+* Detect the language automatically after the page was loaded.
 
 # Folder Structure
 * read-main-body-aloud/

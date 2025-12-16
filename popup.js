@@ -8,12 +8,29 @@ function setStatus(msg) {
 }
 
 function setLang(lang) {
-  langEl.textContent = `Detected language: ${lang || '—'}`;
+  langEl.textContent = `language: ${lang || '—'}`;
 }
 
 async function getActiveTab() {
   const [tab] = await chrome.tabs.query({active: true, currentWindow: true});
   return tab;
+}
+
+async function updateDetectedLanguage() {
+  try {
+    const tab = await getActiveTab();
+    if (!tab?.id) return;
+
+    const res = await chrome.runtime.sendMessage(
+        {type: 'GET_DETECTED_LANGUAGE', tabId: tab.id});
+
+    if (res?.lang)
+      setLang(res.lang);
+    else
+      setLang('');
+  } catch {
+    setLang('');
+  }
 }
 
 function sortVoices(voices) {
@@ -58,7 +75,7 @@ voiceEl.addEventListener('change', async () => {
 document.addEventListener('DOMContentLoaded', async () => {
   await loadVoices();
   setStatus('Idle');
-  setLang('');
+  await updateDetectedLanguage();
 });
 
 document.getElementById('read').addEventListener('click', async () => {
