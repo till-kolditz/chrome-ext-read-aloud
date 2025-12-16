@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Read Main Body Aloud",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Reads aloud the main body text of the current page (ignores menus/sidebars).",
   "permissions": [
     "activeTab",

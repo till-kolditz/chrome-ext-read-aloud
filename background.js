@@ -2,6 +2,8 @@ const tabLangMap = new Map();
 let isSpeaking = false;
 let isPaused = false;
 let currentTabId = null;
+let readingRate = 1.0;
+let stopRequested = false;
 
 // Reads long text in chunks so Chrome TTS doesn't truncate.
 function chunkText(text, maxLen = 1500) {
@@ -24,8 +26,6 @@ function chunkText(text, maxLen = 1500) {
   }
   return chunks.filter(Boolean);
 }
-
-let stopRequested = false;
 
 async function ensureScriptsInjected(tabId) {
   // Inject Readability + content extractor on demand.
@@ -104,8 +104,6 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     }
 
     if (msg?.type === 'READ_MAIN_BODY') {
-      stopRequested = false;
-
       const {tabId, rate, voiceName} = msg;
       if (!tabId) return sendResponse({ok: false, error: 'Missing tabId.'});
 
@@ -122,6 +120,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
             {ok: false, error: 'No readable main text found on this page.'});
 
       // Stop any previous speech, then speak in chunks.
+      stopRequested = true;
       chrome.tts.stop();
 
       const chunks = chunkText(text);
@@ -142,15 +141,21 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         }
 
         chrome.tts.speak(chunks[idx], {
-          rate: typeof rate === 'number' ? rate : 1.0,
+          rate: readingRate,
           voiceName: voiceNameUsed || undefined,
           lang: lang || undefined,
           enqueue: false,
           onEvent: (ev) => {
-            if (stopRequested) return;
+            if (stopRequested) {
+              return;
+            }
 
             if (ev.type === 'end') {
               idx += 1;
+              speakNext();
+            } else if (ev.type === 'interrupted') {
+              // stopRequested was already checked above, so we're updating the
+              // reading rate.
               speakNext();
             } else if (ev.type === 'error') {
               // Skip problematic chunk and continue.
@@ -164,6 +169,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       isSpeaking = true;
       isPaused = false;
       currentTabId = tabId;
+      stopRequested = false;
       speakNext();
 
       return sendResponse({ok: true, lang, voiceNameUsed: voiceNameUsed || ''});
@@ -177,6 +183,18 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg?.type === 'GET_BUTTON_STATES') {
       return sendResponse(
           {ok: true, isSpeaking, isPaused, tabId: currentTabId});
+    }
+
+    if (msg?.type === 'SET_READING_RATE') {
+      readingRate = typeof msg.readingRate === 'number' ? msg.readingRate : 1.0;
+      if (isSpeaking) {
+        chrome.tts.stop();
+      }
+      return sendResponse({ok: true});
+    }
+
+    if (msg?.type === 'GET_READING_RATE') {
+      return sendResponse({ok: true, readingRate});
     }
 
     sendResponse({ok: false, error: 'Unknown message type.'});

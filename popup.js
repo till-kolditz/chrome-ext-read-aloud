@@ -22,7 +22,16 @@ async function getActiveTab() {
 
 function setRateLabel(value) {
   const v = Number(value);
-  rateLabelEl.textContent = `Speed: ${v.toFixed(1)}×`;
+  rateLabelEl.textContent = `Speed (global): ${v.toFixed(2)}×`;
+}
+
+async function initRateUI() {
+  const res = await chrome.runtime.sendMessage({type: 'GET_READING_RATE'});
+  if (!res?.ok) {
+    return;
+  }
+  setRateLabel(res.readingRate);
+  rateEl.value = res.readingRate;
 }
 
 async function updateDetectedLanguage() {
@@ -131,7 +140,7 @@ voiceEl.addEventListener('change', async () => {
 document.addEventListener('DOMContentLoaded', async () => {
   await loadVoices();
   setStatus('Idle');
-  setRateLabel(rateEl.value);
+  initRateUI();
   await updateDetectedLanguage();
   await refreshButtonStates();
   setInterval(refreshButtonStates, 500);
@@ -147,30 +156,33 @@ startStopButton.addEventListener('click', async () => {
       await chrome.runtime.sendMessage({type: 'STOP_READING'});
       setStatus('Stopped.');
       setStartStopButtonModes(false);
+      setPauseResumeButtonMode(false);
       return;
     }
 
     // Start mode (always reads from beginning)
     setStatus('Extracting main text…');
 
-    const rate = Number(rateEl.value);
     const voiceName = voiceEl.value || '';  // empty => Auto
 
     const res = await chrome.runtime.sendMessage(
-        {type: 'READ_MAIN_BODY', tabId: tab.id, rate, voiceName});
+        {type: 'READ_MAIN_BODY', tabId: tab.id, voiceName});
 
     if (!res?.ok) {
       setStatus(res?.error || 'Failed.');
       setStartStopButtonModes(false);
+      setPauseResumeButtonMode(false);
       return;
     }
 
     setLang(res.lang || '');
     setStatus('Reading…');
     setStartStopButtonModes(true);
+    setPauseResumeButtonMode(true, false);
   } catch (e) {
     setStatus(String(e?.message || e));
     setStartStopButtonModes(false);
+    setPauseResumeButtonMode(false);
   }
 });
 
@@ -189,5 +201,7 @@ pauseResumeButton.addEventListener('click', async () => {
 });
 
 rateEl.addEventListener('input', () => {
-  setRateLabel(rateEl.value);
+  const readingRate = Number(rateEl.value);
+  setRateLabel(readingRate);
+  chrome.runtime.sendMessage({type: 'SET_READING_RATE', readingRate});
 });
