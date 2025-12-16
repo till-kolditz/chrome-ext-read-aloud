@@ -11,6 +11,9 @@ In the age of AI, IMHO it's important now to document the actual prompts which g
 * Remove the explicit markers for the webpages, since this is just overfitting.
 * Generate an icon with an abstract person's face from the side with an open mouth, such as if the person was saying "ah" at the moment.
 * Make the image an svg, reduce the space around the face and use the image as the extension's icon.
+* Make the icon's background transparent, but keep the are inside the head white.
+* Add a thin white line around the whole head and the three orange lines.
+* From this icon, generate the icon sizes used for the chrome extensions.
 
 # Folder Structure
 * read-main-body-aloud/
