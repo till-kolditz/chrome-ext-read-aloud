@@ -9,7 +9,7 @@
     body {
       font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
       margin: 12px;
-      width: 260px;
+      width: 280px;
     }
 
     button {
@@ -18,6 +18,15 @@
       margin: 6px 0;
       font-size: 14px;
       cursor: pointer;
+    }
+
+    .row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .row button {
+      width: 50%;
     }
 
     .status {
@@ -32,20 +41,38 @@
       font-size: 12px;
     }
 
-    input[type="range"] {
+    input[type="range"],
+    select {
       width: 100%;
+    }
+
+    select {
+      padding: 8px;
     }
   </style>
 </head>
 
 <body>
-  <button id="read">Read main body</button>
-  <button id="stop">Stop</button>
+  <label>
+    Voice
+    <select id="voice">
+      <option value="">Loading voices…</option>
+    </select>
+  </label>
 
   <label>
     Speed
     <input id="rate" type="range" min="0.6" max="1.6" value="1.0" step="0.1" />
   </label>
+
+  <button id="read">Read main body</button>
+
+  <div class="row">
+    <button id="pause">Pause</button>
+    <button id="resume">Resume</button>
+  </div>
+
+  <button id="stop">Stop</button>
 
   <div class="status" id="status">Idle</div>
 

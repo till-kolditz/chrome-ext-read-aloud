@@ -30,6 +30,16 @@ async function ensureScriptsInjected(tabId) {
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   (async () => {
+    if (msg?.type === 'PAUSE_READING') {
+      chrome.tts.pause();
+      return sendResponse({ok: true});
+    }
+
+    if (msg?.type === 'RESUME_READING') {
+      chrome.tts.resume();
+      return sendResponse({ok: true});
+    }
+
     if (msg?.type === 'STOP_READING') {
       stopRequested = true;
       chrome.tts.stop();
@@ -39,7 +49,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg?.type === 'READ_MAIN_BODY') {
       stopRequested = false;
 
-      const {tabId, rate} = msg;
+      const {tabId, rate, voiceName} = msg;
       if (!tabId) return sendResponse({ok: false, error: 'Missing tabId.'});
 
       await ensureScriptsInjected(tabId);
@@ -61,11 +71,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
       const speakNext = () => {
         if (stopRequested) return;
-
         if (idx >= chunks.length) return;
 
         chrome.tts.speak(chunks[idx], {
           rate: typeof rate === 'number' ? rate : 1.0,
+          voiceName: voiceName || undefined,
           enqueue: false,
           onEvent: (ev) => {
             if (stopRequested) return;
