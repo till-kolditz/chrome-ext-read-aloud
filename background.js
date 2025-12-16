@@ -1,4 +1,6 @@
 const tabLangMap = new Map();
+let isSpeaking = false;
+let currentTabId = null;
 
 // Reads long text in chunks so Chrome TTS doesn't truncate.
 function chunkText(text, maxLen = 1500) {
@@ -90,6 +92,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg?.type === 'STOP_READING') {
       stopRequested = true;
       chrome.tts.stop();
+      isSpeaking = false;
+      currentTabId = null;
       return sendResponse({ok: true});
     }
 
@@ -124,8 +128,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       }
 
       const speakNext = () => {
-        if (stopRequested) return;
-        if (idx >= chunks.length) return;
+        if (stopRequested || idx >= chunks.length) {
+          isSpeaking = false;
+          currentTabId = null;
+          return;
+        }
 
         chrome.tts.speak(chunks[idx], {
           rate: typeof rate === 'number' ? rate : 1.0,
@@ -147,7 +154,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         });
       };
 
+      isSpeaking = true;
+      currentTabId = tabId;
       speakNext();
+
       return sendResponse({ok: true, lang, voiceNameUsed: voiceNameUsed || ''});
     }
 
@@ -156,6 +166,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       return sendResponse({ok: true, lang});
     }
 
+    if (msg?.type === 'GET_TTS_STATE') {
+      return sendResponse({ok: true, isSpeaking, tabId: currentTabId});
+    }
 
     sendResponse({ok: false, error: 'Unknown message type.'});
   })().catch((e) => sendResponse({ok: false, error: String(e?.message || e)}));

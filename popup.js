@@ -2,6 +2,8 @@ const statusEl = document.getElementById('status');
 const langEl = document.getElementById('lang');
 const rateEl = document.getElementById('rate');
 const voiceEl = document.getElementById('voice');
+const toggleBtn = document.getElementById('toggleRead');
+let readingMode = false;  // true => button means "Stop reading"
 
 function setStatus(msg) {
   statusEl.textContent = msg;
@@ -66,6 +68,29 @@ async function loadVoices() {
   }
 }
 
+function setToggleMode(isReading) {
+  readingMode = isReading;
+  toggleBtn.textContent = isReading ? 'Stop reading' : 'Read main body';
+}
+
+async function refreshTtsState() {
+  try {
+    const tab = await getActiveTab();
+    if (!tab?.id) return setToggleMode(false);
+
+    const res = await chrome.runtime.sendMessage({type: 'GET_TTS_STATE'});
+
+    // Only show "Stop reading" if speech is active AND it was started for this
+    // tab.
+    if (res?.ok && res.isSpeaking && res.tabId === tab.id)
+      setToggleMode(true);
+    else
+      setToggleMode(false);
+  } catch {
+    setToggleMode(false);
+  }
+}
+
 voiceEl.addEventListener('change', async () => {
   // If user picks a specific voice, store it. If they pick Auto, clear stored
   // selection.
@@ -75,32 +100,45 @@ voiceEl.addEventListener('change', async () => {
 document.addEventListener('DOMContentLoaded', async () => {
   await loadVoices();
   setStatus('Idle');
+  await refreshTtsState();
   await updateDetectedLanguage();
+  setInterval(refreshTtsState, 500);
 });
 
-document.getElementById('read').addEventListener('click', async () => {
+toggleBtn.addEventListener('click', async () => {
   try {
-    setStatus('Extracting main text…');
     const tab = await getActiveTab();
-    if (!tab?.id) return setStatus('No active tab found.');
+    if (!tab?.id) return;
+
+    if (readingMode) {
+      // Stop mode
+      await chrome.runtime.sendMessage({type: 'STOP_READING'});
+      setStatus('Stopped.');
+      setToggleMode(false);
+      return;
+    }
+
+    // Start mode (always reads from beginning)
+    setStatus('Extracting main text…');
 
     const rate = Number(rateEl.value);
-
-    // If voice dropdown is on Auto (empty string), send empty voiceName.
-    const voiceName = voiceEl.value || '';
+    const voiceName = voiceEl.value || '';  // empty => Auto
 
     const res = await chrome.runtime.sendMessage(
         {type: 'READ_MAIN_BODY', tabId: tab.id, rate, voiceName});
 
     if (!res?.ok) {
       setStatus(res?.error || 'Failed.');
+      setToggleMode(false);
       return;
     }
 
     setLang(res.lang || '');
     setStatus('Reading…');
+    setToggleMode(true);
   } catch (e) {
     setStatus(String(e?.message || e));
+    setToggleMode(false);
   }
 });
 
@@ -112,9 +150,4 @@ document.getElementById('pause').addEventListener('click', async () => {
 document.getElementById('resume').addEventListener('click', async () => {
   await chrome.runtime.sendMessage({type: 'RESUME_READING'});
   setStatus('Reading…');
-});
-
-document.getElementById('stop').addEventListener('click', async () => {
-  await chrome.runtime.sendMessage({type: 'STOP_READING'});
-  setStatus('Stopped.');
 });

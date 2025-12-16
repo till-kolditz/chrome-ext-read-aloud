@@ -19,6 +19,7 @@ In the age of AI, IMHO it's important now to document the actual prompts which g
 * Tweak it so the dropdown remains on “Auto” while still using the detected language each time.
 * Display the detected language on the right side of the status, aligned to right.
 * Detect the language automatically after the page was loaded.
+* Merge the Start and Stop buttons. Initially, the new merged button starts reading the main body, as before. Upon clicking the button, change the label to "Stop reading" and change the behavior to stop reading. When the button was clicked in stop mode, change its behavior to start reading from the beginning.
 
 # Folder Structure
 * read-main-body-aloud/
