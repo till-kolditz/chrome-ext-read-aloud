@@ -2,7 +2,8 @@ const statusEl = document.getElementById('status');
 const langEl = document.getElementById('lang');
 const rateEl = document.getElementById('rate');
 const voiceEl = document.getElementById('voice');
-const toggleBtn = document.getElementById('toggleRead');
+const startStopButton = document.getElementById('toggleStartStop');
+const pauseResumeButton = document.getElementById('togglePauseResume');
 let readingMode = false;  // true => button means "Stop reading"
 
 function setStatus(msg) {
@@ -21,15 +22,18 @@ async function getActiveTab() {
 async function updateDetectedLanguage() {
   try {
     const tab = await getActiveTab();
-    if (!tab?.id) return;
+    if (!tab?.id) {
+      return;
+    }
 
     const res = await chrome.runtime.sendMessage(
         {type: 'GET_DETECTED_LANGUAGE', tabId: tab.id});
 
-    if (res?.lang)
+    if (res?.lang) {
       setLang(res.lang);
-    else
+    } else {
       setLang('');
+    }
   } catch {
     setLang('');
   }
@@ -63,31 +67,52 @@ async function loadVoices() {
     const lang = v.lang ? ` (${v.lang})` : '';
     const local = v.localService ? ' • local' : '';
     opt.textContent = `${v.voiceName || 'Unnamed'}${lang}${local}`;
-    if (v.voiceName && v.voiceName === selectedVoiceName) opt.selected = true;
+    if (v.voiceName && v.voiceName === selectedVoiceName) {
+      opt.selected = true;
+    }
     voiceEl.appendChild(opt);
   }
 }
 
-function setToggleMode(isReading) {
+function setStartStopButtonModes(isReading) {
   readingMode = isReading;
-  toggleBtn.textContent = isReading ? 'Stop reading' : 'Read main body';
+  startStopButton.textContent = isReading ? 'Stop reading' : 'Read main body';
+
+  // Enable pause/resume only while reading
+  pauseResumeButton.disabled = !isReading;
+  if (!isReading) {
+    pauseResumeButton.textContent = 'Pause';
+  }
 }
 
-async function refreshTtsState() {
+function setPauseResumeButtonMode(isReading, isPaused) {
+  pauseResumeButton.disabled = !isReading;
+  if (isReading) {
+    pauseResumeButton.textContent = isPaused ? 'Resume' : 'Pause';
+  } else {
+    pauseResumeButton.textContent = 'Pause/Resume';
+  }
+}
+
+async function refreshButtonStates() {
   try {
     const tab = await getActiveTab();
-    if (!tab?.id) return setToggleMode(false);
+    if (!tab?.id) {
+      setStartStopButtonModes(false);
+      setPauseResumeButtonMode(false);
+    } else {
+      const res = await chrome.runtime.sendMessage({type: 'GET_BUTTON_STATES'});
 
-    const res = await chrome.runtime.sendMessage({type: 'GET_TTS_STATE'});
-
-    // Only show "Stop reading" if speech is active AND it was started for this
-    // tab.
-    if (res?.ok && res.isSpeaking && res.tabId === tab.id)
-      setToggleMode(true);
-    else
-      setToggleMode(false);
+      // Only show "Stop reading" if speech is active AND it was started for
+      // this tab.
+      const activeForThisTab =
+          res?.ok && res.isSpeaking && res.tabId === tab.id;
+      setStartStopButtonModes(!!activeForThisTab);
+      setPauseResumeButtonMode(!!activeForThisTab, !!res.isPaused);
+    }
   } catch {
-    setToggleMode(false);
+    setStartStopButtonModes(false);
+    setPauseResumeButtonMode(false);
   }
 }
 
@@ -100,12 +125,12 @@ voiceEl.addEventListener('change', async () => {
 document.addEventListener('DOMContentLoaded', async () => {
   await loadVoices();
   setStatus('Idle');
-  await refreshTtsState();
   await updateDetectedLanguage();
-  setInterval(refreshTtsState, 500);
+  await refreshButtonStates();
+  setInterval(refreshButtonStates, 500);
 });
 
-toggleBtn.addEventListener('click', async () => {
+startStopButton.addEventListener('click', async () => {
   try {
     const tab = await getActiveTab();
     if (!tab?.id) return;
@@ -114,7 +139,7 @@ toggleBtn.addEventListener('click', async () => {
       // Stop mode
       await chrome.runtime.sendMessage({type: 'STOP_READING'});
       setStatus('Stopped.');
-      setToggleMode(false);
+      setStartStopButtonModes(false);
       return;
     }
 
@@ -129,25 +154,29 @@ toggleBtn.addEventListener('click', async () => {
 
     if (!res?.ok) {
       setStatus(res?.error || 'Failed.');
-      setToggleMode(false);
+      setStartStopButtonModes(false);
       return;
     }
 
     setLang(res.lang || '');
     setStatus('Reading…');
-    setToggleMode(true);
+    setStartStopButtonModes(true);
   } catch (e) {
     setStatus(String(e?.message || e));
-    setToggleMode(false);
+    setStartStopButtonModes(false);
   }
 });
 
-document.getElementById('pause').addEventListener('click', async () => {
-  await chrome.runtime.sendMessage({type: 'PAUSE_READING'});
-  setStatus('Paused.');
-});
+pauseResumeButton.addEventListener('click', async () => {
+  if (pauseResumeButton.disabled) return;
 
-document.getElementById('resume').addEventListener('click', async () => {
-  await chrome.runtime.sendMessage({type: 'RESUME_READING'});
-  setStatus('Reading…');
+  try {
+    const res = await chrome.runtime.sendMessage({type: 'TOGGLE_PAUSE_RESUME'});
+    if (!res?.ok) return;
+
+    pauseResumeButton.textContent = res.isPaused ? 'Resume' : 'Pause';
+    setStatus(res.isPaused ? 'Paused.' : 'Reading…');
+  } catch {
+    // ignore
+  }
 });

@@ -1,5 +1,6 @@
 const tabLangMap = new Map();
 let isSpeaking = false;
+let isPaused = false;
 let currentTabId = null;
 
 // Reads long text in chunks so Chrome TTS doesn't truncate.
@@ -79,20 +80,25 @@ async function pickVoiceForLang(lang) {
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   (async () => {
-    if (msg?.type === 'PAUSE_READING') {
-      chrome.tts.pause();
-      return sendResponse({ok: true});
-    }
+    if (msg?.type === 'TOGGLE_PAUSE_RESUME') {
+      if (!isSpeaking) return sendResponse({ok: false, error: 'Not reading.'});
 
-    if (msg?.type === 'RESUME_READING') {
-      chrome.tts.resume();
-      return sendResponse({ok: true});
+      if (isPaused) {
+        chrome.tts.resume();
+        isPaused = false;
+        return sendResponse({ok: true, isPaused});
+      } else {
+        chrome.tts.pause();
+        isPaused = true;
+        return sendResponse({ok: true, isPaused});
+      }
     }
 
     if (msg?.type === 'STOP_READING') {
       stopRequested = true;
       chrome.tts.stop();
       isSpeaking = false;
+      isPaused = false;
       currentTabId = null;
       return sendResponse({ok: true});
     }
@@ -130,6 +136,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       const speakNext = () => {
         if (stopRequested || idx >= chunks.length) {
           isSpeaking = false;
+          isPaused = false;
           currentTabId = null;
           return;
         }
@@ -155,6 +162,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       };
 
       isSpeaking = true;
+      isPaused = false;
       currentTabId = tabId;
       speakNext();
 
@@ -166,8 +174,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       return sendResponse({ok: true, lang});
     }
 
-    if (msg?.type === 'GET_TTS_STATE') {
-      return sendResponse({ok: true, isSpeaking, tabId: currentTabId});
+    if (msg?.type === 'GET_BUTTON_STATES') {
+      return sendResponse(
+          {ok: true, isSpeaking, isPaused, tabId: currentTabId});
     }
 
     sendResponse({ok: false, error: 'Unknown message type.'});

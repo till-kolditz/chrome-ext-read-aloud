@@ -20,6 +20,8 @@ In the age of AI, IMHO it's important now to document the actual prompts which g
 * Display the detected language on the right side of the status, aligned to right.
 * Detect the language automatically after the page was loaded.
 * Merge the Start and Stop buttons. Initially, the new merged button starts reading the main body, as before. Upon clicking the button, change the label to "Stop reading" and change the behavior to stop reading. When the button was clicked in stop mode, change its behavior to start reading from the beginning.
+* Rename variable "toggleBtn" to "startStopButton" and change the button's ID from "toggleRead" to "toggleStartStop". Rename function "setToggleMode()" to "setButtonModes()". Rename 'GET_TTS_STATE' to 'GET_BUTTON_STATES'. Merge the pause and resume buttons and align the names to those used for the start/stop-button changes.
+* Enable the pause/resume button only when reading.
 
 # Folder Structure
 * read-main-body-aloud/
@@ -45,3 +47,13 @@ The "library" (i.e. the single JavaScript file) was downloaded from GitHub at ht
 1. Enable Developer mode
 1. Load unpacked → select the folder
 1. Open an article page → click the extension icon → Read main body
+
+# Popup Button Behavior
+
+| State              | Start/Stop Button | Pause/Resume Button  |
+| ------------------ | ----------------- | -------------------- |
+| Idle               | Read main body    | ❌ Disabled (“Pause/Resume”) |
+| Reading            | Stop reading      | ✅ Enabled (“Pause”)         |
+| Paused             | Stop reading      | ✅ Enabled (“Resume”)        |
+| Stopped            | Read main body    | ❌ Disabled (“Pause/Resume”) |
+| Finished naturally | Read main body    | ❌ Disabled (“Pause/Resume”) |
