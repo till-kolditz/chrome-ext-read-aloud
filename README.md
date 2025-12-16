@@ -14,6 +14,9 @@ In the age of AI, IMHO it's important now to document the actual prompts which g
 * Make the icon's background transparent, but keep the are inside the head white.
 * Add a thin white line around the whole head and the three orange lines.
 * From this icon, generate the icon sizes used for the chrome extensions.
+* Make the chrome extension detect the web page's language.
+* Show the detected language on the popup and auto-select a matching voice.
+* Tweak it so the dropdown remains on “Auto” while still using the detected language each time.
 
 # Folder Structure
 * read-main-body-aloud/

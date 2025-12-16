@@ -28,6 +28,51 @@ async function ensureScriptsInjected(tabId) {
       {target: {tabId}, files: ['readability.js', 'content.js']});
 }
 
+function normalizeLang(lang) {
+  return (lang || '').toLowerCase().replace('_', '-').trim();
+}
+
+function primaryLang(lang) {
+  const l = normalizeLang(lang);
+  return l.split('-')[0] || '';
+}
+
+async function pickVoiceForLang(lang) {
+  const target = normalizeLang(lang);
+  const primary = primaryLang(lang);
+  if (!target && !primary) return '';
+
+  const voices = await chrome.tts.getVoices();
+
+  // Score voices: prefer exact lang match, then primary match, prefer local
+  // service
+  function score(v) {
+    const vLang = normalizeLang(v.lang);
+    let s = 0;
+
+    if (target && vLang === target) s += 100;
+    if (primary && vLang.startsWith(primary + '-')) s += 60;
+    if (primary && vLang === primary) s += 55;
+
+    if (v.localService) s += 10;
+
+    return s;
+  }
+
+  let best = null;
+  let bestScore = 0;
+
+  for (const v of voices) {
+    const s = score(v);
+    if (s > bestScore) {
+      bestScore = s;
+      best = v;
+    }
+  }
+
+  return bestScore > 0 ? (best.voiceName || '') : '';
+}
+
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   (async () => {
     if (msg?.type === 'PAUSE_READING') {
@@ -58,6 +103,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       const extracted =
           await chrome.tabs.sendMessage(tabId, {type: 'EXTRACT_MAIN_TEXT'});
       const text = extracted?.text?.trim();
+      const lang = extracted?.lang || '';
 
       if (!text)
         return sendResponse(
@@ -69,13 +115,20 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       const chunks = chunkText(text);
       let idx = 0;
 
+      let voiceNameUsed = (voiceName || '').trim();
+      // If popup is in Auto mode (voiceName is empty), pick a matching voice.
+      if (!voiceNameUsed) {
+        voiceNameUsed = await pickVoiceForLang(lang);
+      }
+
       const speakNext = () => {
         if (stopRequested) return;
         if (idx >= chunks.length) return;
 
         chrome.tts.speak(chunks[idx], {
           rate: typeof rate === 'number' ? rate : 1.0,
-          voiceName: voiceName || undefined,
+          voiceName: voiceNameUsed || undefined,
+          lang: lang || undefined,
           enqueue: false,
           onEvent: (ev) => {
             if (stopRequested) return;
@@ -93,7 +146,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       };
 
       speakNext();
-      return sendResponse({ok: true});
+      return sendResponse({ok: true, lang, voiceNameUsed: voiceNameUsed || ''});
     }
 
     sendResponse({ok: false, error: 'Unknown message type.'});

@@ -1,9 +1,14 @@
 const statusEl = document.getElementById('status');
+const langEl = document.getElementById('lang');
 const rateEl = document.getElementById('rate');
 const voiceEl = document.getElementById('voice');
 
 function setStatus(msg) {
   statusEl.textContent = msg;
+}
+
+function setLang(lang) {
+  langEl.textContent = `Detected language: ${lang || '—'}`;
 }
 
 async function getActiveTab() {
@@ -30,7 +35,7 @@ async function loadVoices() {
   voiceEl.innerHTML = '';
   const placeholder = document.createElement('option');
   placeholder.value = '';
-  placeholder.textContent = 'Default voice';
+  placeholder.textContent = 'Auto (match page language)';
   voiceEl.appendChild(placeholder);
 
   for (const v of sorted) {
@@ -45,16 +50,15 @@ async function loadVoices() {
 }
 
 voiceEl.addEventListener('change', async () => {
+  // If user picks a specific voice, store it. If they pick Auto, clear stored
+  // selection.
   await chrome.storage.sync.set({selectedVoiceName: voiceEl.value});
 });
 
 document.addEventListener('DOMContentLoaded', async () => {
-  try {
-    await loadVoices();
-    setStatus('Idle');
-  } catch (e) {
-    setStatus('Failed to load voices.');
-  }
+  await loadVoices();
+  setStatus('Idle');
+  setLang('');
 });
 
 document.getElementById('read').addEventListener('click', async () => {
@@ -64,15 +68,20 @@ document.getElementById('read').addEventListener('click', async () => {
     if (!tab?.id) return setStatus('No active tab found.');
 
     const rate = Number(rateEl.value);
+
+    // If voice dropdown is on Auto (empty string), send empty voiceName.
     const voiceName = voiceEl.value || '';
 
     const res = await chrome.runtime.sendMessage(
         {type: 'READ_MAIN_BODY', tabId: tab.id, rate, voiceName});
 
-    if (res?.ok)
-      setStatus('Reading…');
-    else
+    if (!res?.ok) {
       setStatus(res?.error || 'Failed.');
+      return;
+    }
+
+    setLang(res.lang || '');
+    setStatus('Reading…');
   } catch (e) {
     setStatus(String(e?.message || e));
   }
