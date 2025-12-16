@@ -9,6 +9,8 @@ In the age of AI, IMHO it's important now to document the actual prompts which g
     * https://www.checkpoint.com/de/press-releases/check-point-acquires-lakera-to-deliver-end-to-end-ai-security-for-enterprises/ -- Here the main body text starts with "Check Point Press Releases" and ends with the paragraph about "Legal Notice Regarding Forward-Looking Statements".
     * https://www.phoronix.com/news/Linus-Torvalds-Too-Many-LSM -- Here the main body starts at "Torvalds On Linux Security Modules:" and ends with the paragraph about "Popular News This Week".
 * Remove the explicit markers for the webpages, since this is just overfitting.
+* Generate an icon with an abstract person's face from the side with an open mouth, such as if the person was saying "ah" at the moment.
+* Make the image an svg, reduce the space around the face and use the image as the extension's icon.
 
 # Folder Structure
 * read-main-body-aloud/
@@ -18,6 +20,11 @@ In the age of AI, IMHO it's important now to document the actual prompts which g
   * background.js
   * content.js
   * readability.js
+  * icons/
+    * icon16.png
+    * icon32.png
+    * icon48.png
+    * icon128.png
 
 # Readability library
 The "library" (i.e. the single JavaScript file) was downloaded from GitHub at https://raw.githubusercontent.com/mozilla/readability/refs/heads/main/Readability.js on December 16, 2025, commit ID [08be6b4bdb204dd333c9b7a0cfbc0e730b257252](https://github.com/mozilla/readability/commit/08be6b4bdb204dd333c9b7a0cfbc0e730b257252).
